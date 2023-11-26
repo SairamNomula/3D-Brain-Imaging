@@ -3,7 +3,9 @@ import time
 import os
 
 import PyQt5.QtWidgets as QtWidgets
-import PyQt5.QtCore as Qt
+#import PyQt5.QtCore as Qt
+from PyQt5 import Qt
+
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkUtils import *
 from config import *
@@ -14,8 +16,22 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.app = app
         QtWidgets.QMainWindow.__init__(self, None)
 
+
+
         # base setup
         self.renderer, self.frame, self.vtk_widget, self.interactor, self.render_window = self.setup()
+
+
+        #self.grid = QtWidgets.QGridLayout()
+
+        #self.helper()
+
+        #self.render_window.Render()
+        #self.frame.setLayout(self.grid)
+        #self.setCentralWidget(self.frame)
+        #self.interactor.Initialize()
+        #self.show()
+        
         self.brain, self.mask = setup_brain(self.renderer, self.app.BRAIN_FILE), setup_mask(self.renderer,
                                                                                             self.app.MASK_FILE)
 
@@ -23,7 +39,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.brain_image_prop = setup_projection(self.brain, self.renderer)
         self.brain_slicer_props = setup_slicer(self.renderer, self.brain)  # causing issues with rotation
         self.slicer_widgets = []
-
+        
         # brain pickers
         self.brain_threshold_sp = self.create_new_picker(self.brain.scalar_range[1], self.brain.scalar_range[0], 5.0,
                                                          sum(self.brain.scalar_range) / 2, self.brain_threshold_vc)
@@ -37,12 +53,12 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.mask_opacity_sp = self.create_new_picker(1.0, 0.0, 0.1, MASK_OPACITY, self.mask_opacity_vc)
         self.mask_smoothness_sp = self.create_new_picker(1000, 100, 100, MASK_SMOOTHNESS, self.mask_smoothness_vc)
         self.mask_label_cbs = []
-
+        
         # create grid for all widgets
         self.grid = QtWidgets.QGridLayout()
-
         # add each widget
         self.add_vtk_window_widget()
+        self.add_brain_input_widget()
         self.add_brain_settings_widget()
         self.add_mask_settings_widget()
         self.add_views_widget()
@@ -55,6 +71,44 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.set_axial_view()
         self.interactor.Initialize()
         self.show()
+        
+    
+    def add_brain_input_widget(self): 
+        groupBox = QtWidgets.QGroupBox("Inputs") # Use a group box to group controls
+        groupBox_layout = QtWidgets.QGridLayout() #lines up the controls vertically
+        #self.right_panel_layout.addWidget(groupBox)
+        
+        ''' Add a textfield ( QLineEdit) to show the file path and the browser button '''
+        label = QtWidgets.QLabel("Brain File:")
+        groupBox_layout.addWidget(label)
+        hbox = QtWidgets.QHBoxLayout()
+        self.qt_file_name = QtWidgets.QLineEdit()
+        hbox.addWidget(self.qt_file_name) 
+        self.qt_browser_button = Qt.QPushButton('Browser')
+        self.qt_browser_button.clicked.connect(self.on_file_browser_clicked)
+        self.qt_browser_button.show()
+        hbox.addWidget(self.qt_browser_button)
+        file_widget = QtWidgets.QWidget()
+        file_widget.setLayout(hbox)
+        groupBox_layout.addWidget(file_widget)
+
+        self.qt_open_button = QtWidgets.QPushButton('Open')
+        #self.qt_open_button.clicked.connect(self.open_vtk_file)
+        self.qt_open_button.show()
+        groupBox_layout.addWidget(self.qt_open_button)
+
+        groupBox.setLayout(groupBox_layout)
+        self.grid.addWidget(groupBox, 0, 0, 1, 2)
+    
+    def on_file_browser_clicked(self):
+        dlg = Qt.QFileDialog()
+        dlg.setFileMode(Qt.QFileDialog.AnyFile)
+        dlg.setNameFilter("VTK files (*.vtk)")
+
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            self.qt_file_name.setText(filenames[0])
+            self.object_group_box.setTitle('Brain file: '+str(filenames[0]))
 
     @staticmethod
     def setup():
@@ -99,15 +153,19 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
     def add_vtk_window_widget(self):
         base_brain_file = os.path.basename(self.app.BRAIN_FILE)
         base_mask_file = os.path.basename(self.app.MASK_FILE)
-        object_title = "Brain: {0} (min: {1:.2f}, max: {2:.2f})        Mask: {3}".format(base_brain_file,
-                                                                                         self.brain.scalar_range[0],
-                                                                                         self.brain.scalar_range[1],
-                                                                                         base_mask_file)
-        object_group_box = QtWidgets.QGroupBox(object_title)
+        #object_title = "Brain: {0} (min: {1:.2f}, max: {2:.2f})        Mask: {3}".format(base_brain_file,
+                                                                                        # self.brain.scalar_range[0],
+                                                                                        # self.brain.scalar_range[1],
+                                                                            # base_mask_file)
+        object_group_box = QtWidgets.QGroupBox('')
+        #object_group_box.setTitle('Hello')
+        self.object_group_box = object_group_box
         object_layout = QtWidgets.QVBoxLayout()
         object_layout.addWidget(self.vtk_widget)
         object_group_box.setLayout(object_layout)
+
         self.grid.addWidget(object_group_box, 0, 2, 5, 5)
+
         # must manually set column width for vtk_widget to maintain height:width ratio
         self.grid.setColumnMinimumWidth(2, 700)
 
@@ -147,7 +205,9 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
             extent_index -= 2
 
         brain_group_box.setLayout(brain_group_layout)
-        self.grid.addWidget(brain_group_box, 0, 0, 1, 2)
+        #self.grid.addWidget(brain_group_box, 0, 0, 1, 2)
+        self.grid.addWidget(brain_group_box, 1, 0, 1, 2)
+        self.grid.removeWidget(brain_group_box)
 
     def axial_slice_changed(self):
         pos = self.slicer_widgets[0].value()
@@ -192,7 +252,8 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
             c_col = 0 if c_col == 1 else 1
 
         mask_settings_group_box.setLayout(mask_settings_layout)
-        self.grid.addWidget(mask_settings_group_box, 1, 0, 2, 2)
+        #self.grid.addWidget(mask_settings_group_box, 1, 0, 2, 2)
+        self.grid.addWidget(mask_settings_group_box, 2, 0, 2, 2)
 
         for i, cb in enumerate(self.mask_label_cbs):
             if i < len(self.mask.labels) and self.mask.labels[i].actor:
@@ -211,7 +272,9 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         views_box_layout.addWidget(coronal_view)
         views_box_layout.addWidget(sagittal_view)
         views_box.setLayout(views_box_layout)
-        self.grid.addWidget(views_box, 3, 0, 2, 2)
+        #self.grid.addWidget(views_box, 3, 0, 2, 2)
+        self.grid.addWidget(views_box, 4, 0, 2, 2)
+        
         axial_view.clicked.connect(self.set_axial_view)
         coronal_view.clicked.connect(self.set_coronal_view)
         sagittal_view.clicked.connect(self.set_sagittal_view)
