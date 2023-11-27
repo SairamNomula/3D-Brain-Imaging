@@ -16,7 +16,7 @@ def redirect_vtk_messages():
     log.SetInstance(log)
 
 
-def verify_type(file):
+def verify_type(file):  
     ext = os.path.basename(file).split(os.extsep, 1)
     if ext[1] != 'nii.gz':
         parser.error("File doesn't end with 'nii.gz'. Found: {}".format(ext[1]))
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     #     read_css = css.read()
     #     app.setStyleSheet(read_css)
 
-    app.BRAIN_FILE = args.i
-    app.MASK_FILE = args.m
+    #app.BRAIN_FILE = args.i
+    #app.MASK_FILE = args.m
     window = MainWindow(app)
     sys.exit(app.exec_())
