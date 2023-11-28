@@ -171,7 +171,15 @@ def add_surface_rendering(nii_object, label_idx, label_value):
         nii_object.labels[label_idx].property = actor_property
 
 
-def setup_slicer(renderer, brain):
+def setup_slicer(renderer, brain,obj):
+    if hasattr(obj,'axial_slicer'):
+        renderer.RemoveActor(obj.axial_slicer)
+        renderer.RemoveActor(obj.coronal_slicer)
+        renderer.RemoveActor(obj.sagittal_slicer)
+        del obj.axial_slicer
+        del obj.coronal_slicer
+        del obj.sagittal_slicer
+
     x = brain.extent[1]
     y = brain.extent[3]
     z = brain.extent[5]
@@ -202,15 +210,23 @@ def setup_slicer(renderer, brain):
     sagittal.SetDisplayExtent(int(x/2), int(x/2), 0, y, 0, z)
     sagittal.InterpolateOn()
     sagittal.ForceOpaqueOn()
-
-    renderer.AddActor(axial)
-    renderer.AddActor(coronal)
-    renderer.AddActor(sagittal)
+    
+    obj.axial_slicer = axial
+    obj.coronal_slicer = coronal
+    obj.sagittal_slicer = sagittal
+    
+    renderer.AddActor(obj.axial_slicer)
+    renderer.AddActor(obj.coronal_slicer)
+    renderer.AddActor(obj.sagittal_slicer)
 
     return [axial, coronal, sagittal]
 
 
-def setup_projection(brain, renderer):
+def setup_projection(brain, renderer,obj):
+    if hasattr(obj,'brain_projection'):
+        renderer.RemoveViewProp(obj.brain_projection)
+        del obj.brain_projection
+
     slice_mapper = vtk.vtkImageResliceMapper()
     slice_mapper.SetInputConnection(brain.reader.GetOutputPort())
     slice_mapper.SliceFacesCameraOn()
@@ -224,11 +240,16 @@ def setup_projection(brain, renderer):
     image_slice.SetMapper(slice_mapper)
     image_slice.SetProperty(brain_image_prop)
     image_slice.GetMapper().SetInputConnection(brain.image_mapper.GetOutputPort())
-    renderer.AddViewProp(image_slice)
+    obj.brain_projection = image_slice
+    renderer.AddViewProp(obj.brain_projection)
     return brain_image_prop
 
 
-def setup_brain(renderer, file):
+def setup_brain(renderer, file,obj):
+    if hasattr(obj,'main_brain_actor'):
+        renderer.RemoveActor(obj.main_brain_actor)
+        del obj.main_brain_actor
+
     brain = NiiObject()
     brain.file = file
     brain.reader = read_volume(brain.file)
@@ -252,22 +273,32 @@ def setup_brain(renderer, file):
     brain.scalar_range = scalar_range
 
     add_surface_rendering(brain, 0, sum(scalar_range)/2)  # render index, default extractor value
-    renderer.AddActor(brain.labels[0].actor)
+    
+    obj.main_brain_actor = brain.labels[0].actor
+    renderer.AddActor(obj.main_brain_actor)
     return brain
 
 
-def setup_mask(renderer, file):
+def setup_mask(renderer, file,obj):
+    if hasattr(obj,'main_mask_actor'):
+        for actor in obj.main_mask_actor:
+            renderer.RemoveActor(actor)
+        del obj.main_mask_actor
+
     mask = NiiObject()
     mask.file = file
     mask.reader = read_volume(mask.file)
     mask.extent = mask.reader.GetDataExtent()
     n_labels = int(mask.reader.GetOutput().GetScalarRange()[1])
     n_labels = n_labels if n_labels <= 10 else 10
-
+    
+    obj.main_mask_actor = []
     for label_idx in range(n_labels):
         #if label_idx<len(MASK_COLORS):
             mask.labels.append(NiiLabel(MASK_COLORS[label_idx], MASK_OPACITY, MASK_SMOOTHNESS))
             mask.labels[label_idx].extractor = create_mask_extractor(mask)
             add_surface_rendering(mask, label_idx, label_idx + 1)
-            renderer.AddActor(mask.labels[label_idx].actor)
+            obj.main_mask_actor.append(mask.labels[label_idx].actor)
+            renderer.AddActor(obj.main_mask_actor[-1])
+
     return mask

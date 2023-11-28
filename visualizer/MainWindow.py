@@ -14,8 +14,7 @@ from config import *
 class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
     def __init__(self, app):
         self.app = app
-        #self.app.BRAIN_FILE =''
-        #self.app.MASK_FILE =''
+      
         QtWidgets.QMainWindow.__init__(self, None)
         
         # base setup
@@ -27,7 +26,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.add_vtk_window_widget()
         self.add_brain_input_widget()
 
-        self.helper()   
+        self.run()   
         
         '''     
         self.render_window.Render()
@@ -45,6 +44,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         Create and setup the base vtk and Qt objects for the application
         """
         renderer = vtk.vtkRenderer()
+        renderer.GlobalWarningDisplayOff()
         frame = QtWidgets.QFrame()
         vtk_widget = QVTKRenderWindowInteractor()
         interactor = vtk_widget.GetRenderWindow().GetInteractor()
@@ -125,11 +125,12 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         if hasattr(self.app,'BRAIN_FILE') and hasattr(self.app,'MASK_FILE'):
             print(self.app.BRAIN_FILE)
             print(self.app.MASK_FILE)
-            self.helper()
+            self.run()
+            print('Executed--------')
         else:
             print('Set Both files')
 
-    def helper(self):
+    def run(self):
         print('Calling')
 
         if hasattr(self,'w1') and hasattr(self,'w2') and hasattr(self,'w3'):
@@ -152,12 +153,22 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
             self.show()
             return
 
-        self.brain, self.mask = setup_brain(self.renderer, self.app.BRAIN_FILE), setup_mask(self.renderer,
-                                                                                            self.app.MASK_FILE)
+        if hasattr(self,'brain_image_prop') and hasattr(self,'brain_slicer_props') and hasattr(self,'slicer_widgets'):
+            del self.brain_image_prop
+            del self.brain_slicer_props
+            del self.slicer_widgets
+            del self.brain_slicer_cb
+            del self.brain
+            del self.mask
+            
+        self.render_window.Render()
+
+        self.brain, self.mask = setup_brain(self.renderer, self.app.BRAIN_FILE,self), setup_mask(self.renderer,
+                                                                                            self.app.MASK_FILE,self)
 
         # setup brain projection and slicer
-        self.brain_image_prop = setup_projection(self.brain, self.renderer)
-        self.brain_slicer_props = setup_slicer(self.renderer, self.brain)  # causing issues with rotation
+        self.brain_image_prop = setup_projection(self.brain, self.renderer,self)
+        self.brain_slicer_props = setup_slicer(self.renderer, self.brain,self)  # causing issues with rotation
         self.slicer_widgets = []
         
         # brain pickers
@@ -178,7 +189,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.w1 = self.add_brain_settings_widget()
         self.w2 = self.add_mask_settings_widget()
         self.w3 = self.add_views_widget()
-        self.helper_1()
+        self.show_widgets()
         #  set layout and show
         self.render_window.Render()
         self.setWindowTitle(APPLICATION_TITLE)
@@ -188,7 +199,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.interactor.Initialize()
         self.show()
 
-    def helper_1(self):
+    def show_widgets(self):
         self.grid.addWidget(self.w1, 1, 0, 1, 2)
         self.grid.addWidget(self.w2, 2, 0, 2, 2)
         self.grid.addWidget(self.w3, 4, 0, 2, 2)
