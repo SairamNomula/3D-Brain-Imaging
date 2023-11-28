@@ -1,10 +1,11 @@
+import sys
 import math
 import time
 import os
 
 import PyQt5.QtWidgets as QtWidgets
-#import PyQt5.QtCore as Qt
 from PyQt5 import Qt
+
 
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkUtils import *
@@ -26,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.add_vtk_window_widget()
         self.add_brain_input_widget()
 
-        self.run()   
+        self.run() 
         
         '''     
         self.render_window.Render()
@@ -112,26 +113,42 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
 
         if dlg.exec_():
             filenames = dlg.selectedFiles()
+            if not self.verify_type(filenames[0]):
+                self.object_group_box.setTitle('Invalid File Uploaded')
+                self.object_group_box.setStyleSheet('QGroupBox:title {color: rgb(255, 0, 0);}')
+                return
             if type == 'BRAIN':
+                self.object_group_box.setTitle('Brain File Uploaded')
+                self.object_group_box.setStyleSheet('QGroupBox:title {color: rgb(0, 255, 0);}')
                 self.app.BRAIN_FILE = filenames[0]
                 self.qt_file_name.setText(filenames[0])
             else:
+                self.object_group_box.setTitle('Mask File Uploaded')
+                self.object_group_box.setStyleSheet('QGroupBox:title {color: rgb(0, 255, 0);}')
                 self.app.MASK_FILE = filenames[0]
                 self.qt_file_name1.setText(filenames[0])
 
-            #self.object_group_box.setTitle('Brain file: '+str(filenames[0]))
-    
+            
+
+    def verify_type(self,file):  
+        ext = os.path.basename(file).split(os.extsep, 1)
+        if ext[1] != 'nii.gz':
+            return False
+        return True
+
     def load_inputs(self):
         if hasattr(self.app,'BRAIN_FILE') and hasattr(self.app,'MASK_FILE'):
-            print(self.app.BRAIN_FILE)
-            print(self.app.MASK_FILE)
+            self.object_group_box.setTitle('Rendering... Please Wait')
+            self.object_group_box.setStyleSheet('QGroupBox:title {color: rgb(0, 255, 0);}')
             self.run()
-            print('Executed--------')
+            self.object_group_box.setTitle('Render Completed')
+            self.object_group_box.setStyleSheet('QGroupBox:title {color: rgb(0, 255, 0);}')
         else:
-            print('Set Both files')
+            self.object_group_box.setTitle('Load both the Brain and Mask files')
+            self.object_group_box.setStyleSheet('QGroupBox:title {color: rgb(255, 0, 0);}')
 
+    
     def run(self):
-        print('Calling')
 
         if hasattr(self,'w1') and hasattr(self,'w2') and hasattr(self,'w3'):
             self.grid.removeWidget(self.w1)
@@ -143,7 +160,6 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         
 
         if not hasattr(self.app,'BRAIN_FILE') or not hasattr(self.app,'MASK_FILE'):
-            print('Checking')
             self.render_window.Render()
             self.setWindowTitle(APPLICATION_TITLE)
             self.frame.setLayout(self.grid)
@@ -162,7 +178,8 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
             del self.mask
             
         self.render_window.Render()
-
+        
+        
         self.brain, self.mask = setup_brain(self.renderer, self.app.BRAIN_FILE,self), setup_mask(self.renderer,
                                                                                             self.app.MASK_FILE,self)
 
@@ -184,7 +201,6 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         self.mask_opacity_sp = self.create_new_picker(1.0, 0.0, 0.1, MASK_OPACITY, self.mask_opacity_vc)
         self.mask_smoothness_sp = self.create_new_picker(1000, 100, 100, MASK_SMOOTHNESS, self.mask_smoothness_vc)
         self.mask_label_cbs = []
-        
         
         self.w1 = self.add_brain_settings_widget()
         self.w2 = self.add_mask_settings_widget()
@@ -277,7 +293,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         
         #self.grid.addWidget(brain_group_box, 1, 0, 1, 2)
         return brain_group_box
-
+    
     def axial_slice_changed(self):
         pos = self.slicer_widgets[0].value()
         self.brain_slicer_props[0].SetDisplayExtent(self.brain.extent[0], self.brain.extent[1], self.brain.extent[2],
@@ -482,3 +498,10 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QApplication):
         for _ in range(10):
             self.app.processEvents()
             time.sleep(0.1)
+
+
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    window = MainWindow(app)
+    sys.exit(app.exec_())

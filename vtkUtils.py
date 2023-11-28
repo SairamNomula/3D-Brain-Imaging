@@ -1,10 +1,24 @@
 import vtk
-from ErrorObserver import *
-from NiiObject import *
 from config import *
-from NiiLabel import *
 
-error_observer = ErrorObserver()
+class NiiLabel:
+    def __init__(self, color, opacity, smoothness):
+        self.actor = None
+        self.property = None
+        self.smoother = None
+        self.color = color
+        self.opacity = opacity
+        self.smoothness = smoothness
+
+class NiiObject:
+    def __init__(self):
+        self.file = None
+        self.reader = None
+        self.extent = ()
+        self.labels = []
+        self.image_mapper = None
+        self.scalar_range = None
+
 
 '''
 VTK Pipeline:   reader ->
@@ -63,7 +77,6 @@ def create_polygon_reducer(extractor):
     :return: the decimated volume
     """
     reducer = vtk.vtkDecimatePro()
-    reducer.AddObserver('ErrorEvent', error_observer)  # throws an error event if there is no data to decimate
     reducer.SetInputConnection(extractor.GetOutputPort())
     reducer.SetTargetReduction(0.5)  # magic number
     reducer.PreserveTopologyOn()
@@ -246,6 +259,7 @@ def setup_projection(brain, renderer,obj):
 
 
 def setup_brain(renderer, file,obj):
+    
     if hasattr(obj,'main_brain_actor'):
         renderer.RemoveActor(obj.main_brain_actor)
         del obj.main_brain_actor
