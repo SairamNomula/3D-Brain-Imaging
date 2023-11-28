@@ -1,4 +1,4 @@
-# 3D-Brain_Imaging
+# 3D-Brain-Imaging
 Command to run the project : `python3 main.py`
 
 > Requirements
