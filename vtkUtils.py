@@ -20,21 +20,8 @@ class NiiObject:
         self.scalar_range = None
 
 
-'''
-VTK Pipeline:   reader ->
-                extractor -> 
-                decimate -> 
-                smoother -> 
-                normalizer -> 
-                mapper
-'''
-
-
 def read_volume(file_name):
-    """
-    :param file_name: The filename of type 'nii.gz'
-    :return: vtkNIFTIImageReader (https://www.vtk.org/doc/nightly/html/classvtkNIFTIImageReader.html)
-    """
+    
     reader = vtk.vtkNIFTIImageReader()
     reader.SetFileNameSliceOffset(1)
     reader.SetDataByteOrderToBigEndian()
@@ -44,12 +31,7 @@ def read_volume(file_name):
 
 
 def create_brain_extractor(brain):
-    """
-    Given the output from brain (vtkNIFTIImageReader) extract it into 3D using
-    vtkFlyingEdges3D algorithm (https://www.vtk.org/doc/nightly/html/classvtkFlyingEdges3D.html)
-    :param brain: a vtkNIFTIImageReader volume containing the brain
-    :return: the extracted volume from vtkFlyingEdges3D
-    """
+    
     brain_extractor = vtk.vtkFlyingEdges3D()
     brain_extractor.SetInputConnection(brain.reader.GetOutputPort())
     # brain_extractor.SetValue(0, sum(brain.scalar_range)/2)
@@ -57,25 +39,14 @@ def create_brain_extractor(brain):
 
 
 def create_mask_extractor(mask):
-    """
-    Given the output from mask (vtkNIFTIImageReader) extract it into 3D using
-    vtkDiscreteMarchingCubes algorithm (https://www.vtk.org/doc/release/5.0/html/a01331.html).
-    This algorithm is specialized for reading segmented volume labels.
-    :param mask: a vtkNIFTIImageReader volume containing the mask
-    :return: the extracted volume from vtkDiscreteMarchingCubes
-    """
+   
     mask_extractor = vtk.vtkDiscreteMarchingCubes()
     mask_extractor.SetInputConnection(mask.reader.GetOutputPort())
     return mask_extractor
 
 
 def create_polygon_reducer(extractor):
-    """
-    Reduces the number of polygons (triangles) in the volume. This is used to speed up rendering.
-    (https://www.vtk.org/doc/nightly/html/classvtkDecimatePro.html)
-    :param extractor: an extractor (vtkPolyDataAlgorithm), will be either vtkFlyingEdges3D or vtkDiscreteMarchingCubes
-    :return: the decimated volume
-    """
+    
     reducer = vtk.vtkDecimatePro()
     reducer.SetInputConnection(extractor.GetOutputPort())
     reducer.SetTargetReduction(0.5)  # magic number
@@ -84,13 +55,7 @@ def create_polygon_reducer(extractor):
 
 
 def create_smoother(reducer, smoothness):
-    """
-    Reorients some points in the volume to smooth the render edges.
-    (https://www.vtk.org/doc/nightly/html/classvtkSmoothPolyDataFilter.html)
-    :param reducer:
-    :param smoothness:
-    :return:
-    """
+    
     smoother = vtk.vtkSmoothPolyDataFilter()
     smoother.SetInputConnection(reducer.GetOutputPort())
     smoother.SetNumberOfIterations(smoothness)
@@ -98,13 +63,7 @@ def create_smoother(reducer, smoothness):
 
 
 def create_normals(smoother):
-    """
-    The filter can reorder polygons to insure consistent orientation across polygon neighbors. Sharp edges can be split
-    and points duplicated with separate normals to give crisp (rendered) surface definition.
-    (https://www.vtk.org/doc/nightly/html/classvtkPolyDataNormals.html)
-    :param smoother:
-    :return:
-    """
+   
     brain_normals = vtk.vtkPolyDataNormals()
     brain_normals.SetInputConnection(smoother.GetOutputPort())
     brain_normals.SetFeatureAngle(60.0)  #
@@ -131,31 +90,6 @@ def create_actor(mapper, prop):
     actor.SetMapper(mapper)
     actor.SetProperty(prop)
     return actor
-
-
-def create_mask_table():
-    m_mask_opacity = 1
-    brain_lut = vtk.vtkLookupTable()
-    brain_lut.SetRange(0, 4)
-    brain_lut.SetRampToLinear()
-    brain_lut.SetValueRange(0, 1)
-    brain_lut.SetHueRange(0, 0)
-    brain_lut.SetSaturationRange(0, 0)
-
-    brain_lut.SetNumberOfTableValues(10)
-    brain_lut.SetTableRange(0, 9)
-    brain_lut.SetTableValue(0, 0, 0, 0, 0)
-    brain_lut.SetTableValue(1, 1, 0, 0, m_mask_opacity)  # RED
-    brain_lut.SetTableValue(2, 0, 1, 0, m_mask_opacity)  # GREEN
-    brain_lut.SetTableValue(3, 1, 1, 0, m_mask_opacity)  # YELLOW
-    brain_lut.SetTableValue(4, 0, 0, 1, m_mask_opacity)  # BLUE
-    brain_lut.SetTableValue(5, 1, 0, 1, m_mask_opacity)  # MAGENTA
-    brain_lut.SetTableValue(6, 0, 1, 1, m_mask_opacity)  # CYAN
-    brain_lut.SetTableValue(7, 1, 0.5, 0.5, m_mask_opacity)  # RED_2
-    brain_lut.SetTableValue(8, 0.5, 1, 0.5, m_mask_opacity)  # GREEN_2
-    brain_lut.SetTableValue(9, 0.5, 0.5, 1, m_mask_opacity)  # BLUE_2
-    brain_lut.Build()
-    return brain_lut
 
 
 def create_table():
@@ -285,6 +219,12 @@ def setup_brain(renderer, file,obj):
     view_colors.Update()
     brain.image_mapper = view_colors
     brain.scalar_range = scalar_range
+    print('Scalar Range : ')
+    print(scalar_range)
+    print(sum(scalar_range)/2)
+    
+    n_labels = int(brain.reader.GetOutput().GetScalarRange()[1])
+    print('****'+str(n_labels))
 
     add_surface_rendering(brain, 0, sum(scalar_range)/2)  # render index, default extractor value
     
@@ -304,15 +244,16 @@ def setup_mask(renderer, file,obj):
     mask.reader = read_volume(mask.file)
     mask.extent = mask.reader.GetDataExtent()
     n_labels = int(mask.reader.GetOutput().GetScalarRange()[1])
+    print('Labels : '+str(n_labels))
     n_labels = n_labels if n_labels <= 10 else 10
     
     obj.main_mask_actor = []
+    
     for label_idx in range(n_labels):
-        #if label_idx<len(MASK_COLORS):
-            mask.labels.append(NiiLabel(MASK_COLORS[label_idx], MASK_OPACITY, MASK_SMOOTHNESS))
-            mask.labels[label_idx].extractor = create_mask_extractor(mask)
-            add_surface_rendering(mask, label_idx, label_idx + 1)
-            obj.main_mask_actor.append(mask.labels[label_idx].actor)
-            renderer.AddActor(obj.main_mask_actor[-1])
+        mask.labels.append(NiiLabel(MASK_COLORS[label_idx], MASK_OPACITY, MASK_SMOOTHNESS))
+        mask.labels[label_idx].extractor = create_mask_extractor(mask)
+        add_surface_rendering(mask, label_idx, label_idx + 1)
+        obj.main_mask_actor.append(mask.labels[label_idx].actor)
+        renderer.AddActor(obj.main_mask_actor[-1])
 
     return mask
