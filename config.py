@@ -1,5 +1,5 @@
 # default brain settings
-APPLICATION_TITLE = "3D Brain Imaging Visualizer"
+APPLICATION_TITLE = "3D Brain Imaging - A NifTI Visualizer"
 BRAIN_SMOOTHNESS = 500
 BRAIN_OPACITY = 0.2
 BRAIN_COLORS = [(1.0, 0.9, 0.9)]  # RGB percentages
@@ -14,5 +14,6 @@ MASK_COLORS = [(1, 0, 0),
                 (0, 1, 1),
                 (1, 0.5, 0.5),
                 (0.5, 1, 0.5),
-                (0.5, 0.5, 1)]  # RGB percentages
+                (0.5, 0.5, 1),
+                (0.5,0,1)]  # RGB percentages
 MASK_OPACITY = 1.0
